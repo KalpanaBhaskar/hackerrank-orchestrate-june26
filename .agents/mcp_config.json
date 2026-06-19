@@ -1,0 +1,9 @@
+﻿{
+  "mcpServers": {
+    "sample-server": {
+      "command": "node",
+      "args": ["/path/to/server/index.js"],
+      "serverUrl": "https://example.com"
+    }
+  }
+}
