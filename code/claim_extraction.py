@@ -90,7 +90,7 @@ def extract_claim(
     user_claim: str,
     claim_object: str,
     claim_id: str = "unknown",
-    max_retries: int = 2,
+    max_retries: int = 5,
 ) -> dict:
     """
     Runs L2 claim extraction.
@@ -141,7 +141,12 @@ def extract_claim(
 
         except Exception as exc:
             last_exc = exc
-            wait = 2 ** attempt
+            err_str = str(exc)
+            # For 429 rate limit, wait longer
+            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                wait = min(30, 5 * (2 ** attempt))  # 5s, 10s, 20s, 30s...
+            else:
+                wait = 2 ** attempt
             print(f"  [L2] attempt {attempt + 1} failed for {claim_id}: {exc}. Retrying in {wait}s…")
             time.sleep(wait)
 

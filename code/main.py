@@ -14,6 +14,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from functools import partial
 
+# Seconds to sleep between claims in sequential mode (workers=1)
+# Free tier: 15 RPM for gemini-2.0-flash; each claim makes 2 calls → 4s gap is safe
+CLAIM_SLEEP_S = float(os.environ.get("CLAIM_SLEEP_S", "4"))
+
 # Ensure code/ is on path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -190,22 +194,34 @@ def run_pipeline(
     output_rows = [None] * total
     t_start     = time.perf_counter()
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(
-                process_claim, rec, history_lookup, evidence_reqs, i + 1, total
-            ): i
-            for i, rec in enumerate(records)
-        }
-        for future in as_completed(futures):
-            idx = futures[future]
+    if max_workers == 1:
+        # Sequential mode: respect free-tier RPM by sleeping between claims
+        for i, rec in enumerate(records):
             try:
-                output_rows[idx] = future.result()
+                output_rows[i] = process_claim(rec, history_lookup, evidence_reqs, i + 1, total)
             except Exception as exc:
-                print(f"[ERROR] Claim {idx+1} failed: {exc}")
-                output_rows[idx] = assemble_row(
-                    records[idx], _error_verdict(f"Pipeline error: {exc}")
-                )
+                print(f"[ERROR] Claim {i+1} failed: {exc}")
+                output_rows[i] = assemble_row(rec, _error_verdict(f"Pipeline error: {exc}"))
+            if i < total - 1:
+                print(f"  [rate-limit] sleeping {CLAIM_SLEEP_S}s before next claim...")
+                time.sleep(CLAIM_SLEEP_S)
+    else:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(
+                    process_claim, rec, history_lookup, evidence_reqs, i + 1, total
+                ): i
+                for i, rec in enumerate(records)
+            }
+            for future in as_completed(futures):
+                idx = futures[future]
+                try:
+                    output_rows[idx] = future.result()
+                except Exception as exc:
+                    print(f"[ERROR] Claim {idx+1} failed: {exc}")
+                    output_rows[idx] = assemble_row(
+                        records[idx], _error_verdict(f"Pipeline error: {exc}")
+                    )
 
     elapsed = time.perf_counter() - t_start
     print(f"\n[Done] {total} claims in {elapsed:.1f}s")

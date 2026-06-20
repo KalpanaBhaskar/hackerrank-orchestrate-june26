@@ -156,7 +156,7 @@ def assess_single_call(
         schema=schema,
     )
 
-    content_parts = [types.Part.from_text(SINGLE_CALL_SYSTEM + "\n\n" + prompt)]
+    content_parts = [types.Part.from_text(text=SINGLE_CALL_SYSTEM + "\n\n" + prompt)]
     for img_path, img_id in zip(image_paths, image_ids):
         try:
             content_parts.append(

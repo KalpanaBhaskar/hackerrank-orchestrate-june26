@@ -25,7 +25,7 @@ from pathlib import Path
 REPO_ROOT  = Path(__file__).resolve().parent.parent
 CODE_DIR   = REPO_ROOT / "code"
 EVAL_DIR   = CODE_DIR / "evaluation"
-OUTPUT_CSV = REPO_ROOT / "output.csv"
+OUTPUT_CSV = REPO_ROOT / "dataset" / "output.csv"
 
 # Paths to include in the zip
 INCLUDE_ROOTS = [
@@ -36,9 +36,9 @@ INCLUDE_ROOTS = [
 # Relative paths from repo root that should always be included
 ALWAYS_INCLUDE = [
     ".env.local",           # template (no real key)
-    "output.csv",           # required deliverable
     "problem_statement.md",
     "README.md",
+    # NOTE: output.csv is uploaded separately to HackerRank — NOT in the zip
 ]
 
 # Exclude patterns (matched against any path component)

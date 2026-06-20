@@ -142,7 +142,7 @@ def assess_visual_evidence(
     evidence_requirements: list[dict],
     history_risk_summary: str,
     claim_id: str = "unknown",
-    max_retries: int = 2,
+    max_retries: int = 5,
 ) -> dict:
     """
     Runs L3 visual evidence reasoning.
@@ -178,7 +178,7 @@ def assess_visual_evidence(
     # Build content parts list for the new SDK
     # In google.genai v2.x: contents is a list of Part objects or raw bytes
     content_parts = [
-        types.Part.from_text(L3_SYSTEM_PROMPT + "\n\n" + user_prompt)
+        types.Part.from_text(text=L3_SYSTEM_PROMPT + "\n\n" + user_prompt)
     ]
 
     for img_path, img_id in zip(image_paths, image_ids):
@@ -220,7 +220,11 @@ def assess_visual_evidence(
 
         except Exception as exc:
             last_exc = exc
-            wait = 2 ** attempt
+            err_str = str(exc)
+            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                wait = min(30, 5 * (2 ** attempt))
+            else:
+                wait = 2 ** attempt
             print(f"  [L3] attempt {attempt + 1} failed for {claim_id}: {exc}. Retrying in {wait}s…")
             time.sleep(wait)
 
